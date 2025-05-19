@@ -1,7 +1,9 @@
 # Core dependencies
-flask>=2.2,<3.0
+flask==2.2.5
 flask-login==0.6.2
 flask-sqlalchemy==3.0.3
+werkzeug==2.3.7
+
 google-generativeai==0.3.1
 pandas==1.5.3
 python-dotenv==1.0.0
