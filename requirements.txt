@@ -1,5 +1,5 @@
 # Core dependencies
-flask==2.0.1
+flask>=2.2,<3.0
 flask-login==0.6.2
 flask-sqlalchemy==3.0.3
 google-generativeai==0.3.1
