@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="{{ theme }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini Dataset Generator</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <style>
+        :root {
+            --primary-color: #6c63ff;
+            --primary-hover: #5a52d5;
+        }
+        body {
+            padding-top: 3.5rem;
+        }
+        [data-bs-theme=light] {
+            --body-bg: #f8f9fa;
+            --card-bg: #ffffff;
+            --text-color: #212529;
+        }
+        [data-bs-theme=dark] {
+            --body-bg: #212529;
+            --card-bg: #2b3035;
+            --text-color: #e9ecef;
+        }
+        body {
+            background-color: var(--body-bg);
+        }
+        .container {
+            max-width: 1000px;
+        }
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 10px;
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+        }
+        h1, h2, h3 {
+            color: var(--primary-color);
+            margin-bottom: 1.5rem;
+        }
+        .form-label {
+            font-weight: 500;
+        }
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+            border-color: var(--primary-hover);
+        }
+        .alert {
+            margin-top: 1rem;
+        }
+        .theme-toggle {
+            cursor: pointer;
+        }
+        .advanced-options {
+            display: none;
+        }
+        .schema-editor {
+            margin-top: 1rem;
+        }
+        .column-row {
+            margin-bottom: 0.5rem;
+            padding: 0.5rem;
+            border: 1px solid #dee2e6;
+            border-radius: 0.25rem;
+            background-color: rgba(0,0,0,0.02);
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+        <div class="container">
+            <a class="navbar-brand" href="/">Gemini Dataset Generator</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/">Generate</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/dashboard">Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/templates">Templates</a>
+                    </li>
+                </ul>
+                <div class="d-flex">
+                    <a class="nav-link theme-toggle" href="/theme/{% if theme == 'light' %}dark{% else %}light{% endif %}">
+                        {% if theme == 'light' %}
+                            <i class="bi bi-moon-fill"></i>
+                        {% else %}
+                            <i class="bi bi-sun-fill"></i>
+                        {% endif %}
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card">
+                    <h1 class="text-center">Generate Advanced Datasets</h1>
+            
+            {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+        
+        <form method="post" action="{{ url_for('index') }}" id="dataset-form">
+            <div class="mb-3">
+                <label for="prompt" class="form-label">Dataset Description</label>
+                <textarea class="form-control" id="prompt" name="prompt" rows="3" placeholder="Describe the dataset you want to generate (e.g., 'Customer purchase history for an online electronics store')" required></textarea>
+                <div class="form-text">Be as specific as possible about the data you need.</div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="columns" class="form-label">Columns</label>
+                <input type="text" class="form-control" id="columns" name="columns" placeholder="id, name, age, email, location" required>
+                <div class="form-text">Comma-separated list of column names.</div>
+                <div class="form-check mt-2">
+                    <input type="checkbox" class="form-check-input" id="define-schema" name="define_schema">
+                    <label class="form-check-label" for="define-schema">Define schema (data types and constraints)</label>
+                </div>
+            </div>
+            
+            <!-- Schema Editor (hidden by default) -->
+            <div class="schema-editor card p-3 mb-3" id="schema-editor" style="display: none;">
+                <h5>Schema Definition</h5>
+                <p class="form-text mb-3">Define data types and constraints for your columns.</p>
+                <div id="column-schema-container">
+                    <!-- Column schema rows will be added here dynamically -->
+                </div>
+                <input type="hidden" id="schema-json" name="schema_json" value="[]">
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label for="num_rows" class="form-label">Number of Rows</label>
+                    <input type="number" class="form-control" id="num_rows" name="num_rows" min="1" max="1000" value="50">
+                    <div class="form-text">Maximum 1000 rows recommended.</div>
+                </div>
+                <div class="mb-3">
+                    <label for="api_key" class="form-label">Gemini API Key</label>
+                    <div class="input-group">
+                        <input type="password" class="form-control" id="api_key" name="api_key" placeholder="Enter your Gemini API key" value="{{ session.get('api_key', '') }}" required>
+                        <button class="btn btn-outline-secondary" type="button" id="toggle-api-key">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                    </div>
+                    <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="save-api-key" checked>
+                        <label class="form-check-label" for="save-api-key">Save API key locally</label>
+                    </div>
+                    <div class="form-text">Your Gemini API key will be stored securely in your browser. Get one at <a href="https://ai.google.dev/" target="_blank">Google AI Studio</a>.</div>
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="model" class="form-label">Gemini Model</label>
+                <select class="form-select" id="model" name="model">
+                    {% for model_id, model_name in models.items() %}
+                        <option value="{{ model_id }}">{{ model_name }}</option>
+                    {% endfor %}
+                </select>
+                <div class="form-text">Select the Gemini model to use for generation.</div>
+            </div>
+            
+            <div class="mb-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <label class="form-label mb-0">Output Format</label>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="advanced-options-toggle">
+                        Advanced Options <i class="bi bi-chevron-down"></i>
+                    </button>
+                </div>
+                <div class="btn-group w-100 mt-2" role="group">
+                    <input type="radio" class="btn-check" name="output_format" id="format-csv" value="csv" checked>
+                    <label class="btn btn-outline-primary" for="format-csv">CSV</label>
+                    
+                    <input type="radio" class="btn-check" name="output_format" id="format-json" value="json">
+                    <label class="btn btn-outline-primary" for="format-json">JSON</label>
+                    
+                    <input type="radio" class="btn-check" name="output_format" id="format-excel" value="excel">
+                    <label class="btn btn-outline-primary" for="format-excel">Excel</label>
+                </div>
+            </div>
+            
+            <!-- Advanced Options (hidden by default) -->
+            <div class="advanced-options card p-3 mb-3" id="advanced-options">
+                <h5>Advanced Options</h5>
+
+                <div class="form-check mb-3">
+                    <input type="checkbox" class="form-check-input" id="use-web-search" name="use_web_search">
+                    <label class="form-check-label" for="use-web-search">Use web search to enhance dataset (DuckDuckGo)</label>
+                    <div class="form-text">Search the web to find relevant information for your dataset. This will make requests to DuckDuckGo to gather real-world data.</div>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="missing_values_pct" class="form-label">Missing Values Percentage</label>
+                    <input type="range" class="form-range" id="missing_values_pct" name="missing_values_pct" min="0" max="30" value="0">
+                    <div class="d-flex justify-content-between">
+                        <span>0%</span>
+                        <span id="missing-value-display">0%</span>
+                        <span>30%</span>
+                    </div>
+                    <div class="form-text">Add random missing values to the dataset.</div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Unique Value Constraints</label>
+                    <div id="unique-constraints">
+                        <!-- Unique column checkboxes will be added here dynamically -->
+                    </div>
+                    <div class="form-text">Select columns that should have unique values.</div>
+                </div>
+                
+                <div class="form-check mb-3">
+                    <input type="checkbox" class="form-check-input" id="data-visualization" name="data_visualization" checked>
+                    <label class="form-check-label" for="data-visualization">Generate data visualizations</label>
+                </div>
+            </div>
+            
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-primary btn-lg"><i class="bi bi-magic"></i> Generate Dataset</button>
+            </div>
+        </form>
+        </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card">
+                    <div id="dataset-history-container">
+                        <h5>Recent Datasets</h5>
+                        <p class="text-muted">No recent datasets found. Generate some datasets to see them here.</p>
+                    </div>
+                </div>
+                
+                <div class="card mt-3">
+                    <h5>Templates</h5>
+                    <div id="templates-container">
+                        <div class="list-group">
+                            <a href="#" class="list-group-item list-group-item-action load-template" data-template='{"name":"Customer Data","description":"Generate realistic customer data for e-commerce","columns":["customer_id", "first_name", "last_name", "email", "phone", "address", "city", "state", "zip_code", "registration_date", "last_purchase_date", "total_spent"]}'>
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">Customer Data</h6>
+                                </div>
+                                <small>12 columns including personal info and purchase data</small>
+                            </a>
+                            <a href="#" class="list-group-item list-group-item-action load-template" data-template='{"name":"Product Catalog","description":"E-commerce product catalog with categories and pricing","columns":["product_id", "product_name", "category", "subcategory", "brand", "price", "cost", "weight", "dimensions", "stock_quantity", "rating", "description"]}'>
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">Product Catalog</h6>
+                                </div>
+                                <small>12 columns with product details and inventory info</small>
+                            </a>
+                            <a href="#" class="list-group-item list-group-item-action load-template" data-template='{"name":"Financial Transactions","description":"Generate financial transaction data with categories","columns":["transaction_id", "date", "amount", "type", "category", "description", "account_id", "customer_id", "merchant", "status", "fee", "balance_after"]}'>
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">Financial Transactions</h6>
+                                </div>
+                                <small>12 columns with transaction details</small>
+                            </a>
+                        </div>
+                        <div class="d-grid gap-2 mt-3">
+                            <a href="/templates" class="btn btn-outline-primary btn-sm">Manage Templates</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Local Storage for API Key
+            const apiKeyInput = document.getElementById('api_key');
+            const saveApiKeyCheckbox = document.getElementById('save-api-key');
+            const toggleApiKeyBtn = document.getElementById('toggle-api-key');
+            
+            // Load API key from local storage if available
+            if (localStorage.getItem('gemini_api_key')) {
+                apiKeyInput.value = localStorage.getItem('gemini_api_key');
+                saveApiKeyCheckbox.checked = true;
+            }
+            
+            // Save API key to local storage when form is submitted
+            document.querySelector('form').addEventListener('submit', function() {
+                if (saveApiKeyCheckbox.checked && apiKeyInput.value) {
+                    localStorage.setItem('gemini_api_key', apiKeyInput.value);
+                } else {
+                    localStorage.removeItem('gemini_api_key');
+                }
+            });
+            
+            // Toggle API key visibility
+            toggleApiKeyBtn.addEventListener('click', function() {
+                const type = apiKeyInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                apiKeyInput.setAttribute('type', type);
+                toggleApiKeyBtn.innerHTML = type === 'password' ? '<i class="bi bi-eye"></i>' : '<i class="bi bi-eye-slash"></i>';
+            });
+            
+            // Load dataset history from local storage for recent datasets card
+            const datasetHistoryContainer = document.getElementById('dataset-history-container');
+            if (datasetHistoryContainer) {
+                const datasetHistory = JSON.parse(localStorage.getItem('dataset_history') || '[]');
+                
+                if (datasetHistory.length > 0) {
+                    let historyHtml = '<h5>Recent Datasets</h5><div class="list-group">';
+                    
+                    // Show most recent 5 datasets
+                    datasetHistory.slice(0, 5).forEach(dataset => {
+                        historyHtml += `
+                        <a href="#" class="list-group-item list-group-item-action load-dataset" data-dataset='${JSON.stringify(dataset)}'>
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">${dataset.name || 'Unnamed Dataset'}</h6>
+                                <small>${dataset.created_at || 'Unknown date'}</small>
+                            </div>
+                            <p class="mb-1">${dataset.description || ''}</p>
+                            <small>${dataset.columns ? dataset.columns.length : 0} columns, ${dataset.row_count || '?'} rows</small>
+                        </a>`;
+                    });
+                    
+                    historyHtml += '</div>';
+                    datasetHistoryContainer.innerHTML = historyHtml;
+                    
+                    // Add event listeners to load previous dataset settings
+                    document.querySelectorAll('.load-dataset').forEach(item => {
+                        item.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            const dataset = JSON.parse(this.getAttribute('data-dataset'));
+                            
+                            // Fill form with dataset settings
+                            document.getElementById('prompt').value = dataset.description || '';
+                            document.getElementById('columns').value = dataset.columns ? dataset.columns.join(', ') : '';
+                            document.getElementById('num_rows').value = dataset.row_count || 50;
+                            
+                            if (dataset.model_used && document.getElementById('model')) {
+                                document.getElementById('model').value = dataset.model_used;
+                            }
+                            
+                            // Scroll to form
+                            document.getElementById('dataset-form').scrollIntoView({ behavior: 'smooth' });
+                        });
+                    });
+                }
+            }
+            
+            // Handle template loading
+            document.querySelectorAll('.load-template').forEach(item => {
+                item.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const template = JSON.parse(this.getAttribute('data-template'));
+                    
+                    // Fill form with template settings
+                    document.getElementById('prompt').value = template.description || '';
+                    document.getElementById('columns').value = template.columns ? template.columns.join(', ') : '';
+                    
+                    // Set schema if available
+                    if (template.schema && document.getElementById('schema_json')) {
+                        document.getElementById('schema_json').value = JSON.stringify(template.schema);
+                        // Update schema editor
+                        if (typeof updateSchemaEditor === 'function') {
+                            updateSchemaEditor();
+                        }
+                    }
+                    
+                    // Scroll to form
+                    document.getElementById('dataset-form').scrollIntoView({ behavior: 'smooth' });
+                    
+                    // Show notification
+                    const alertHtml = `
+                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        Template "${template.name}" loaded successfully!
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>`;
+                    
+                    document.querySelector('.container').insertAdjacentHTML('afterbegin', alertHtml);
+                });
+            });
+            
+            // Manage custom templates
+            const savedTemplates = JSON.parse(localStorage.getItem('saved_templates') || '[]');
+            const templatesContainer = document.getElementById('templates-container');
+            
+            if (savedTemplates.length > 0 && templatesContainer) {
+                const customTemplatesList = document.createElement('div');
+                customTemplatesList.className = 'list-group mt-3';
+                customTemplatesList.innerHTML = '<h6>Custom Templates</h6>';
+                
+                savedTemplates.forEach(template => {
+                    const templateItem = document.createElement('a');
+                    templateItem.href = '#';
+                    templateItem.className = 'list-group-item list-group-item-action load-template';
+                    templateItem.setAttribute('data-template', JSON.stringify(template));
+                    
+                    templateItem.innerHTML = `
+                    <div class="d-flex w-100 justify-content-between">
+                        <h6 class="mb-1">${template.name}</h6>
+                    </div>
+                    <small>${template.columns ? template.columns.length : 0} columns</small>`;
+                    
+                    customTemplatesList.appendChild(templateItem);
+                });
+                
+                templatesContainer.appendChild(customTemplatesList);
+                
+                // Add event listeners to newly added template items
+                document.querySelectorAll('.load-template:not([data-listener])').forEach(item => {
+                    item.setAttribute('data-listener', 'true');
+                    item.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        const template = JSON.parse(this.getAttribute('data-template'));
+                        
+                        // Fill form with template settings
+                        document.getElementById('prompt').value = template.description || '';
+                        document.getElementById('columns').value = template.columns ? template.columns.join(', ') : '';
+                        
+                        // Scroll to form
+                        document.getElementById('dataset-form').scrollIntoView({ behavior: 'smooth' });
+                    });
+                });
+            }
+            // Advanced options toggle
+            const advancedOptionsToggle = document.getElementById('advanced-options-toggle');
+            const advancedOptions = document.getElementById('advanced-options');
+            
+            advancedOptionsToggle.addEventListener('click', function() {
+                if (advancedOptions.style.display === 'none' || !advancedOptions.style.display) {
+                    advancedOptions.style.display = 'block';
+                    advancedOptionsToggle.innerHTML = 'Advanced Options <i class="bi bi-chevron-up"></i>';
+                } else {
+                    advancedOptions.style.display = 'none';
+                    advancedOptionsToggle.innerHTML = 'Advanced Options <i class="bi bi-chevron-down"></i>';
+                }
+            });
+            
+            // Schema editor toggle
+            const defineSchema = document.getElementById('define-schema');
+            const schemaEditor = document.getElementById('schema-editor');
+            const columnsInput = document.getElementById('columns');
+            const schemaJson = document.getElementById('schema-json');
+            const columnSchemaContainer = document.getElementById('column-schema-container');
+            
+            defineSchema.addEventListener('change', function() {
+                if (this.checked) {
+                    updateSchemaEditor();
+                    schemaEditor.style.display = 'block';
+                } else {
+                    schemaEditor.style.display = 'none';
+                }
+            });
+            
+            columnsInput.addEventListener('input', function() {
+                if (defineSchema.checked) {
+                    updateSchemaEditor();
+                }
+            });
+            
+            // Update schema editor with current columns
+            function updateSchemaEditor() {
+                const columns = columnsInput.value.split(',').map(col => col.trim()).filter(col => col);
+                columnSchemaContainer.innerHTML = '';
+                
+                columns.forEach((column, index) => {
+                    const columnRow = document.createElement('div');
+                    columnRow.className = 'column-row';
+                    columnRow.innerHTML = `
+                        <div class="row">
+                            <div class="col-md-4 mb-2">
+                                <label class="form-label">Column</label>
+                                <input type="text" class="form-control column-name" value="${column}" readonly>
+                            </div>
+                            <div class="col-md-4 mb-2">
+                                <label class="form-label">Data Type</label>
+                                <select class="form-select column-type" data-column="${column}">
+                                    <option value="">Auto-detect</option>
+                                    <option value="string">String</option>
+                                    <option value="integer">Integer</option>
+                                    <option value="float">Float</option>
+                                    <option value="boolean">Boolean</option>
+                                    <option value="date">Date</option>
+                                    <option value="email">Email</option>
+                                    <option value="phone">Phone</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4 mb-2">
+                                <label class="form-label">Constraints</label>
+                                <div class="input-group">
+                                    <div class="form-check form-check-inline ms-2">
+                                        <input class="form-check-input column-unique" type="checkbox" name="unique_columns" value="${column}" id="unique-${index}">
+                                        <label class="form-check-label" for="unique-${index}">Unique</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    columnSchemaContainer.appendChild(columnRow);
+                });
+                
+                // Update unique constraints section
+                updateUniqueConstraints(columns);
+                
+                // Update schema JSON when inputs change
+                document.querySelectorAll('.column-type, .column-unique').forEach(el => {
+                    el.addEventListener('change', updateSchemaJson);
+                });
+                
+                // Initial schema JSON update
+                updateSchemaJson();
+            }
+            
+            function updateUniqueConstraints(columns) {
+                const uniqueConstraints = document.getElementById('unique-constraints');
+                uniqueConstraints.innerHTML = '';
+                
+                columns.forEach((column, index) => {
+                    const uniqueCheck = document.createElement('div');
+                    uniqueCheck.className = 'form-check';
+                    uniqueCheck.innerHTML = `
+                        <input class="form-check-input" type="checkbox" name="unique_columns" value="${column}" id="unique-adv-${index}">
+                        <label class="form-check-label" for="unique-adv-${index}">${column}</label>
+                    `;
+                    uniqueConstraints.appendChild(uniqueCheck);
+                });
+            }
+            
+            function updateSchemaJson() {
+                const columns = columnsInput.value.split(',').map(col => col.trim()).filter(col => col);
+                const schema = [];
+                
+                columns.forEach(column => {
+                    const typeEl = document.querySelector(`.column-type[data-column="${column}"]`);
+                    const uniqueEl = document.querySelector(`.column-unique[value="${column}"]`);
+                    
+                    const columnSchema = {
+                        name: column,
+                        type: typeEl ? typeEl.value : '',
+                        constraints: {}
+                    };
+                    
+                    if (uniqueEl && uniqueEl.checked) {
+                        columnSchema.constraints.unique = true;
+                    }
+                    
+                    schema.push(columnSchema);
+                });
+                
+                schemaJson.value = JSON.stringify(schema);
+            }
+            
+            // Missing values slider
+            const missingValuesSlider = document.getElementById('missing_values_pct');
+            const missingValueDisplay = document.getElementById('missing-value-display');
+            
+            missingValuesSlider.addEventListener('input', function() {
+                missingValueDisplay.textContent = this.value + '%';
+            });
+        });
+    </script>
+</body>
+</html>

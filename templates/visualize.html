@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="{{ theme }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dataset Visualization - Gemini Dataset Generator</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <style>
+        :root {
+            --primary-color: #6c63ff;
+            --primary-hover: #5a52d5;
+        }
+        body {
+            padding-top: 3.5rem;
+        }
+        [data-bs-theme=light] {
+            --body-bg: #f8f9fa;
+            --card-bg: #ffffff;
+            --text-color: #212529;
+            --metadata-bg: #f0f0ff;
+        }
+        [data-bs-theme=dark] {
+            --body-bg: #212529;
+            --card-bg: #2b3035;
+            --text-color: #e9ecef;
+            --metadata-bg: #313846;
+        }
+        body {
+            background-color: var(--body-bg);
+        }
+        .container {
+            max-width: 95%;
+        }
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 10px;
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+        }
+        h1, h2, h3 {
+            color: var(--primary-color);
+        }
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+            border-color: var(--primary-hover);
+        }
+        .theme-toggle {
+            cursor: pointer;
+        }
+        .chart-container {
+            margin-bottom: 2rem;
+        }
+        .metadata {
+            background-color: var(--metadata-bg);
+            padding: 1rem;
+            border-radius: 5px;
+            margin-bottom: 1.5rem;
+        }
+        .chart-card {
+            transition: transform 0.3s ease;
+        }
+        .chart-card:hover {
+            transform: translateY(-5px);
+        }
+        .quality-table th, .quality-table td {
+            padding: 0.5rem;
+        }
+        .chart-img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+        <div class="container">
+            <a class="navbar-brand" href="/">Gemini Dataset Generator</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">Generate</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/dashboard">Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/templates">Templates</a>
+                    </li>
+                </ul>
+                <div class="d-flex">
+                    <a class="nav-link theme-toggle" href="/theme/{% if theme == 'light' %}dark{% else %}light{% endif %}">
+                        {% if theme == 'light' %}
+                            <i class="bi bi-moon-fill"></i>
+                        {% else %}
+                            <i class="bi bi-sun-fill"></i>
+                        {% endif %}
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="card">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1>Data Visualization</h1>
+                <div>
+                    <a href="{{ url_for('download', dataset_id=dataset.id) }}" class="btn btn-primary">
+                        <i class="bi bi-download"></i> Download Dataset
+                    </a>
+                </div>
+            </div>
+
+            <!-- Dataset Info -->
+            <div class="metadata mb-4">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5>Dataset Information</h5>
+                        <p><strong>Name:</strong> {{ dataset.name }}</p>
+                        <p><strong>Description:</strong> {{ dataset.description }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h5>Data Overview</h5>
+                        <p><strong>Total Rows:</strong> {{ data_info.rows }}</p>
+                        <p><strong>Total Columns:</strong> {{ data_info.columns }}</p>
+                        <p><strong>Missing Values:</strong> {{ data_info.missing_values }} ({{ data_info.missing_percent }})</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Data Visualizations -->
+            <h2 class="mb-3">Data Visualizations</h2>
+            
+            {% if charts %}
+                <div class="row">
+                    {% for chart in charts %}
+                        <div class="col-md-6 mb-4">
+                            <div class="card chart-card h-100">
+                                <div class="card-header">
+                                    <h5 class="mb-0">{{ chart.title }}</h5>
+                                </div>
+                                <div class="card-body text-center">
+                                    <img src="{{ chart.path }}" alt="{{ chart.title }}" class="chart-img">
+                                </div>
+                                <div class="card-footer d-flex justify-content-center">
+                                    <span class="badge bg-secondary">{{ chart.type }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="alert alert-info">
+                    No visualizations available for this dataset.
+                </div>
+            {% endif %}
+
+            <!-- Data Quality -->
+            <h2 class="mt-4 mb-3">Data Quality Analysis</h2>
+            <div class="table-responsive">
+                <table class="table table-striped quality-table">
+                    <thead>
+                        <tr>
+                            <th>Column</th>
+                            <th>Missing Values</th>
+                            <th>Unique Values</th>
+                            <th>Top Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for col_name, stats in quality_stats.items() %}
+                            <tr>
+                                <td>{{ col_name }}</td>
+                                <td>{{ stats.missing }} ({{ stats.missing_percent }})</td>
+                                <td>{{ stats.unique_values }}</td>
+                                <td>{{ stats.top_value }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="d-flex justify-content-between mt-4">
+                <a href="{{ url_for('index') }}" class="btn btn-secondary">
+                    <i class="bi bi-plus-circle"></i> Generate Another Dataset
+                </a>
+                <a href="{{ url_for('download', dataset_id=dataset.id) }}" class="btn btn-primary">
+                    <i class="bi bi-download"></i> Download Dataset
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
