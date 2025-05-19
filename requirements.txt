@@ -12,7 +12,7 @@ gunicorn==20.1.0
 # Data handling and export
 openpyxl==3.1.2
 sqlalchemy==2.0.20
-pyarrow==12.0.1
+pyarrow==12.0.0
 fastparquet==2023.7.0
 
 # Visualization
