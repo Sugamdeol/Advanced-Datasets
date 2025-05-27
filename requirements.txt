@@ -6,3 +6,4 @@ seaborn
 google-generativeai
 beautifulsoup4
 requests
+gunicorn
